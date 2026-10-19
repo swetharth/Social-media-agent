@@ -1,7 +1,7 @@
 {
-  "name": "research-agent",
+  "name": "social-media-agent",
   "version": "1.0.0",
-  "description": "Intelligent Research Companion powered by IBM Granite AI — Problem Statement No.7",
+  "description": "Social Media Agent powered by IBM Granite AI",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

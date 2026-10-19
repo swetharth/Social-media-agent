@@ -100,7 +100,7 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n╔════════════════════════════════════════════════╗`);
-  console.log(`║         RESEARCH AGENT — IBM GRANITE AI         ║`);
+  console.log(`║       SOCIAL MEDIA AGENT — IBM GRANITE AI       ║`);
   console.log(`╠════════════════════════════════════════════════╣`);
   console.log(`║  Dashboard : http://localhost:${PORT}             ║`);
   console.log(`║  API Health: http://localhost:${PORT}/api/health  ║`);
