@@ -1,0 +1,372 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Role of Agentic AI</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:#060a14;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;padding:24px;
+  }
+  .slide{
+    width:1160px;
+    background:#0d1117;
+    border:1.5px solid #1e2840;
+    border-radius:18px;
+    overflow:hidden;
+  }
+
+  /* ── HEADER ── */
+  .hdr{
+    background:#0b1422;
+    border-bottom:1px solid #1e2840;
+    padding:18px 36px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .hdr-left{display:flex;align-items:center;gap:12px;}
+  .hdr-dot{width:10px;height:10px;border-radius:50%;background:#58a6ff;}
+  .hdr-title{font-size:20px;font-weight:800;color:#e6edf3;letter-spacing:-0.4px;}
+  .hdr-title em{font-style:normal;color:#58a6ff;}
+  .hdr-sub{font-size:11px;color:#8b949e;margin-top:2px;}
+  .hdr-right{display:flex;gap:7px;}
+  .badge{padding:4px 11px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid;}
+  .b1{background:#090f1e;color:#58a6ff;border-color:#1e3060;}
+  .b2{background:#0e0a1c;color:#bc8cff;border-color:#261844;}
+  .b3{background:#07130e;color:#3fb950;border-color:#143020;}
+
+  /* ── MAIN GRID ── */
+  .main{padding:18px 36px 22px;display:grid;grid-template-columns:1.05fr 1fr;gap:16px;}
+
+  /* ── LEFT COLUMN ── */
+  .left{display:flex;flex-direction:column;gap:12px;}
+
+  /* Agentic loop row */
+  .loop-row{display:flex;align-items:stretch;gap:0;}
+  .lnode{
+    flex:1;text-align:center;padding:9px 4px;border:1px solid;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;
+  }
+  .lnode:first-child{border-radius:8px 0 0 8px;}
+  .lnode:last-child{border-radius:0 8px 8px 0;}
+  .ln-icon{font-size:16px;}
+  .ln-name{font-size:9px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;}
+  .ln-desc{font-size:9px;opacity:0.6;line-height:1.3;}
+  .loop-arr{display:flex;align-items:center;font-size:13px;color:#30363d;padding:0 1px;flex-shrink:0;}
+
+  .ln1{background:#090f1e;border-color:#1e3060;color:#58a6ff;}
+  .ln2{background:#0e0a1c;border-color:#261844;color:#bc8cff;}
+  .ln3{background:#150f04;border-color:#2e2408;color:#e3b341;}
+  .ln4{background:#07130e;border-color:#143020;color:#3fb950;}
+  .ln5{background:#140606;border-color:#300e0e;color:#f85149;}
+
+  /* 6-role grid */
+  .roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .rcard{
+    background:#0a0f18;border:1px solid #1e2840;border-radius:9px;
+    padding:10px 11px;border-top:2px solid;
+  }
+  .rc-b{border-top-color:#58a6ff;}
+  .rc-p{border-top-color:#bc8cff;}
+  .rc-g{border-top-color:#3fb950;}
+  .rc-y{border-top-color:#e3b341;}
+  .rc-r{border-top-color:#f85149;}
+  .rc-c{border-top-color:#39d0d8;}
+  .r-icon{font-size:16px;margin-bottom:4px;}
+  .r-title{font-size:11px;font-weight:700;margin-bottom:3px;}
+  .rc-b .r-title{color:#58a6ff;}
+  .rc-p .r-title{color:#bc8cff;}
+  .rc-g .r-title{color:#3fb950;}
+  .rc-y .r-title{color:#e3b341;}
+  .rc-r .r-title{color:#f85149;}
+  .rc-c .r-title{color:#39d0d8;}
+  .r-desc{font-size:10px;color:#8b949e;line-height:1.45;}
+
+  /* Compare strip */
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .cbox{border-radius:8px;padding:10px 12px;border:1px solid;}
+  .cbox.old{background:#100505;border-color:#2a1010;}
+  .cbox.new{background:#050f0a;border-color:#102a18;}
+  .c-head{font-size:10px;font-weight:700;margin-bottom:7px;}
+  .old .c-head{color:#f85149;}
+  .new .c-head{color:#3fb950;}
+  .c-item{font-size:10px;color:#8b949e;padding:3px 0;border-bottom:1px solid #1a2030;display:flex;gap:5px;align-items:flex-start;line-height:1.4;}
+  .c-item:last-child{border-bottom:none;}
+  .cdot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+  .old .cdot{background:#f85149;}
+  .new .cdot{background:#3fb950;}
+
+  /* ── RIGHT COLUMN ── */
+  .right{display:flex;flex-direction:column;gap:12px;}
+
+  /* Definition box */
+  .def-box{
+    background:#0a0f18;border:1px solid #1e2840;border-radius:10px;
+    padding:14px 16px;border-left:3px solid #58a6ff;
+  }
+  .def-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#58a6ff;margin-bottom:6px;}
+  .def-text{font-size:12px;color:#8b949e;line-height:1.7;}
+  .def-text strong{color:#c9d1d9;}
+
+  /* Granite functions */
+  .fns-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  .fn-item{
+    background:#0a0f18;border:1px solid #1e2840;border-radius:8px;
+    padding:9px 11px;display:flex;gap:9px;align-items:flex-start;
+  }
+  .fn-icon{font-size:18px;flex-shrink:0;}
+  .fn-name{font-size:11px;font-weight:700;color:#c9d1d9;margin-bottom:2px;}
+  .fn-desc{font-size:10px;color:#8b949e;line-height:1.4;}
+  .fn-tag{margin-top:4px;display:inline-block;padding:1px 7px;border-radius:3px;font-size:9px;font-weight:600;background:#0c2040;color:#58a6ff;border:1px solid #1e4080;font-family:monospace;}
+
+  /* Value row */
+  .value-row{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .vcard{background:#0a0f18;border:1px solid #1e2840;border-radius:8px;padding:10px 8px;text-align:center;}
+  .v-icon{font-size:18px;margin-bottom:4px;}
+  .v-title{font-size:10px;font-weight:700;margin-bottom:2px;}
+  .v-desc{font-size:9px;color:#8b949e;line-height:1.4;}
+  .vt-b{color:#58a6ff;}
+  .vt-p{color:#bc8cff;}
+  .vt-g{color:#3fb950;}
+  .vt-y{color:#e3b341;}
+
+  /* Section labels */
+  .slabel{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#484f58;margin-bottom:6px;}
+
+  /* ── FOOTER ── */
+  .ftr{
+    border-top:1px solid #1e2840;
+    padding:11px 36px;
+    display:flex;align-items:center;justify-content:space-between;
+    background:#080c14;
+  }
+  .ftr-stats{display:flex;gap:24px;}
+  .fst{text-align:center;}
+  .fst-val{font-size:18px;font-weight:800;}
+  .fst-lbl{font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.4px;}
+  .fv1{color:#58a6ff;} .fv2{color:#bc8cff;} .fv3{color:#3fb950;} .fv4{color:#e3b341;}
+  .ftr-right{text-align:right;}
+  .ftr-model{font-size:11px;font-weight:600;color:#58a6ff;}
+  .ftr-pid{font-size:9px;color:#484f58;font-family:monospace;margin-top:2px;}
+  .made{text-align:center;padding:7px;font-size:10px;color:#30363d;border-top:1px solid #1e2840;}
+</style>
+</head>
+<body>
+<div class="slide">
+
+  
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-dot"></div>
+      <div>
+        <div class="hdr-title">Role of <em>Agentic AI</em> in the Social Media Agent Solution</div>
+        <div class="hdr-sub">Problem Statement #10 — IBM Granite 3.3 powered autonomous intelligence</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span class="badge b1">IBM Granite 3.3</span>
+      <span class="badge b2">watsonx.ai</span>
+      <span class="badge b3">Perceive → Reason → Act</span>
+    </div>
+  </div>
+
+  
+  <div class="main">
+
+    
+    <div class="left">
+
+      
+      <div>
+        <div class="slabel">The Agentic AI Loop</div>
+        <div class="loop-row">
+          <div class="lnode ln1"><div class="ln-icon">👁️</div><div class="ln-name">Perceive</div><div class="ln-desc">Social data &amp; user prompts</div></div>
+          <div class="loop-arr">›</div>
+          <div class="lnode ln2"><div class="ln-icon">🧩</div><div class="ln-name">Reason</div><div class="ln-desc">Granite analyses context</div></div>
+          <div class="loop-arr">›</div>
+          <div class="lnode ln3"><div class="ln-icon">📋</div><div class="ln-name">Plan</div><div class="ln-desc">Decides what to generate</div></div>
+          <div class="loop-arr">›</div>
+          <div class="lnode ln4"><div class="ln-icon">⚡</div><div class="ln-name">Act</div><div class="ln-desc">Creates content/insights</div></div>
+          <div class="loop-arr">›</div>
+          <div class="lnode ln5"><div class="ln-icon">🔄</div><div class="ln-name">Learn</div><div class="ln-desc">Session memory retained</div></div>
+        </div>
+      </div>
+
+      
+      <div>
+        <div class="slabel">6 Core Roles</div>
+        <div class="roles-grid">
+          <div class="rcard rc-b">
+            <div class="r-icon">🧠</div>
+            <div class="r-title">Conversational Agent</div>
+            <div class="r-desc">Multi-turn IBM Granite chat with session memory for strategy Q&amp;A</div>
+          </div>
+          <div class="rcard rc-p">
+            <div class="r-icon">✍️</div>
+            <div class="r-title">Content Creator</div>
+            <div class="r-desc">Auto-generates posts for all 4 platforms with brand tone awareness</div>
+          </div>
+          <div class="rcard rc-g">
+            <div class="r-icon">💬</div>
+            <div class="r-title">Sentiment Analyst</div>
+            <div class="r-desc">Scores audience emotions −1 to +1 with themes &amp; breakdown</div>
+          </div>
+          <div class="rcard rc-y">
+            <div class="r-icon">🔮</div>
+            <div class="r-title">Trend Forecaster</div>
+            <div class="r-desc">Predicts trending hashtags &amp; optimal post times 24–48h ahead</div>
+          </div>
+          <div class="rcard rc-r">
+            <div class="r-icon">🚀</div>
+            <div class="r-title">Campaign Planner</div>
+            <div class="r-desc">Turns a brief into full strategy with KPIs, pillars &amp; schedule</div>
+          </div>
+          <div class="rcard rc-c">
+            <div class="r-icon">🎯</div>
+            <div class="r-title">Competitor Analyst</div>
+            <div class="r-desc">Benchmarks rivals, finds gaps, outputs written AI narrative</div>
+          </div>
+        </div>
+      </div>
+
+      
+      <div>
+        <div class="slabel">Traditional vs Agentic AI</div>
+        <div class="compare">
+          <div class="cbox old">
+            <div class="c-head">❌ Traditional Tool</div>
+            <div class="c-item"><div class="cdot"></div>Manual content writing per platform</div>
+            <div class="c-item"><div class="cdot"></div>Reactive — acts after trends peak</div>
+            <div class="c-item"><div class="cdot"></div>Siloed dashboards, no unified view</div>
+            <div class="c-item"><div class="cdot"></div>No memory, restarts every session</div>
+          </div>
+          <div class="cbox new">
+            <div class="c-head">✅ Agentic AI (This Solution)</div>
+            <div class="c-item"><div class="cdot"></div>All 4 platforms generated in &lt;10s</div>
+            <div class="c-item"><div class="cdot"></div>Proactive — forecasts 24–48h ahead</div>
+            <div class="c-item"><div class="cdot"></div>Unified real-time multichannel view</div>
+            <div class="c-item"><div class="cdot"></div>Session memory for multi-turn strategy</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    
+    <div class="right">
+
+      
+      <div class="def-box">
+        <div class="def-label">What is Agentic AI?</div>
+        <div class="def-text">
+          Agentic AI <strong>autonomously perceives</strong> social media streams, <strong>maintains context</strong> across interactions, <strong>reasons</strong> over complex data (sentiment, trends, competitors), and <strong>takes goal-directed actions</strong> — generating campaigns, forecasting trends, scheduling posts — without needing step-by-step human instruction for every task.
+        </div>
+      </div>
+
+      
+      <div>
+        <div class="slabel">IBM Granite 3.3 — AI Functions</div>
+        <div class="fns-grid">
+          <div class="fn-item">
+            <div class="fn-icon">💬</div>
+            <div>
+              <div class="fn-name">chatWithAgent()</div>
+              <div class="fn-desc">Multi-turn conversation with session history. Answers strategy &amp; platform questions.</div>
+              <div class="fn-tag">POST /api/agent/chat</div>
+            </div>
+          </div>
+          <div class="fn-item">
+            <div class="fn-icon">✍️</div>
+            <div>
+              <div class="fn-name">generatePost()</div>
+              <div class="fn-desc">Platform-optimised posts with tone, brand voice &amp; character limit awareness.</div>
+              <div class="fn-tag">POST /api/content/generate</div>
+            </div>
+          </div>
+          <div class="fn-item">
+            <div class="fn-icon">📊</div>
+            <div>
+              <div class="fn-name">analyzeSentiment()</div>
+              <div class="fn-desc">Returns JSON: score, emotions, themes, positive/negative/neutral % breakdown.</div>
+              <div class="fn-tag">POST /api/analytics/sentiment</div>
+            </div>
+          </div>
+          <div class="fn-item">
+            <div class="fn-icon">🔮</div>
+            <div>
+              <div class="fn-name">forecastTrends()</div>
+              <div class="fn-desc">Predicts hashtags, emerging topics &amp; best posting windows 24–48h ahead.</div>
+              <div class="fn-tag">POST /api/agent/analyze</div>
+            </div>
+          </div>
+          <div class="fn-item">
+            <div class="fn-icon">🚀</div>
+            <div>
+              <div class="fn-name">generateCampaign()</div>
+              <div class="fn-desc">Produces full strategy plan with KPIs, content pillars &amp; expected outcomes.</div>
+              <div class="fn-tag">POST /api/agent/campaign</div>
+            </div>
+          </div>
+          <div class="fn-item">
+            <div class="fn-icon">🎯</div>
+            <div>
+              <div class="fn-name">analyzeCompetitor()</div>
+              <div class="fn-desc">Competitive intelligence report with strengths, gaps &amp; 3 action items.</div>
+              <div class="fn-tag">POST /api/agent/competitor</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      
+      <div>
+        <div class="slabel">Business Value</div>
+        <div class="value-row">
+          <div class="vcard">
+            <div class="v-icon">⏱️</div>
+            <div class="v-title vt-b">10x Faster</div>
+            <div class="v-desc">All 4 platform posts generated in under 10 seconds</div>
+          </div>
+          <div class="vcard">
+            <div class="v-icon">🎯</div>
+            <div class="v-title vt-p">Data-Driven</div>
+            <div class="v-desc">Sentiment scores replace guesswork with real intelligence</div>
+          </div>
+          <div class="vcard">
+            <div class="v-icon">🔮</div>
+            <div class="v-title vt-g">Proactive</div>
+            <div class="v-desc">Post at peak moments, not after the trend wave passes</div>
+          </div>
+          <div class="vcard">
+            <div class="v-icon">🏆</div>
+            <div class="v-title vt-y">Competitive Edge</div>
+            <div class="v-desc">Auto-surfaces competitor gaps &amp; opportunities daily</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  
+  <div class="ftr">
+    <div class="ftr-stats">
+      <div class="fst"><div class="fst-val fv1">6</div><div class="fst-lbl">AI Agent Roles</div></div>
+      <div class="fst"><div class="fst-val fv2">6</div><div class="fst-lbl">Granite Functions</div></div>
+      <div class="fst"><div class="fst-val fv3">4</div><div class="fst-lbl">Platforms Covered</div></div>
+      <div class="fst"><div class="fst-val fv4">5</div><div class="fst-lbl">Agentic Loop Steps</div></div>
+    </div>
+    <div class="ftr-right">
+      <div class="ftr-model">ibm/granite-3-3-8b-instruct</div>
+      <div class="ftr-pid">Project: 7186deab-885c-46e8-9f5f-9e8efd862a09</div>
+    </div>
+  </div>
+
+  <div class="made">Made with IBM Bob</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Media Agent — IBM Granite AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #bc8cff;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --orange: #e3b341;
+      --twitter: #1da1f2;
+      --linkedin: #0077b5;
+      --instagram: #e1306c;
+      --facebook: #1877f2;
+      --card-radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.5; overflow-x: hidden; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Layout ── */
+    .app { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 56px 1fr; min-height: 100vh; }
+    header { grid-column: 1/-1; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 100; }
+    header .logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+    header .logo span { color: var(--accent2); }
+    header .badge { background: var(--accent); color: #000; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+    .live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .model-badge { font-size: 11px; color: var(--muted); background: var(--surface2); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+
+    /* ── Sidebar ── */
+    aside { background: var(--surface); border-right: 1px solid var(--border); padding: 16px 0; overflow-y: auto; }
+    .nav-section { padding: 0 12px; margin-bottom: 8px; }
+    .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 8px 12px 4px; font-weight: 600; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); transition: all .15s; font-size: 13px; border: none; background: none; width: 100%; text-align: left; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(88,166,255,0.12); color: var(--accent); }
+    .nav-item .icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .platform-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-left: auto; }
+
+    /* ── Main ── */
+    main { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Sections (views) ── */
+    .view { display: none; flex-direction: column; gap: 20px; }
+    .view.active { display: flex; }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 20px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .card-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── KPI Grid ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 18px; position: relative; overflow: hidden; }
+    .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .kpi.twitter::before { background: var(--twitter); }
+    .kpi.linkedin::before { background: var(--linkedin); }
+    .kpi.instagram::before { background: var(--instagram); }
+    .kpi.facebook::before { background: var(--facebook); }
+    .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .kpi-value { font-size: 28px; font-weight: 700; }
+    .kpi-change { font-size: 12px; margin-top: 6px; }
+    .kpi-change.up { color: var(--green); }
+    .kpi-change.down { color: var(--red); }
+
+    /* ── Grid layouts ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+    /* ── Charts ── */
+    .chart-container { position: relative; height: 200px; }
+    .chart-container.tall { height: 260px; }
+
+    /* ── Tables ── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid rgba(48,54,61,0.5); font-size: 13px; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--surface2); }
+
+    /* ── Badges / Tags ── */
+    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .tag.positive { background: rgba(63,185,80,.15); color: var(--green); }
+    .tag.negative { background: rgba(248,81,73,.15); color: var(--red); }
+    .tag.neutral { background: rgba(139,148,158,.15); color: var(--muted); }
+    .tag.high { background: rgba(88,166,255,.15); color: var(--accent); }
+    .tag.med { background: rgba(210,153,34,.15); color: var(--yellow); }
+    .tag.platform { font-size: 10px; padding: 2px 6px; }
+    .tag.twitter-tag { background: rgba(29,161,242,.15); color: var(--twitter); }
+    .tag.linkedin-tag { background: rgba(0,119,181,.15); color: var(--linkedin); }
+    .tag.instagram-tag { background: rgba(225,48,108,.15); color: var(--instagram); }
+    .tag.facebook-tag { background: rgba(24,119,242,.15); color: var(--facebook); }
+
+    /* ── Trending list ── */
+    .trending-list { display: flex; flex-direction: column; gap: 8px; }
+    .trending-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--surface2); border-radius: 8px; }
+    .trending-rank { font-size: 11px; color: var(--muted); width: 20px; }
+    .trending-tag { font-weight: 600; color: var(--accent); flex: 1; font-size: 13px; }
+    .trending-bar-wrap { width: 80px; background: var(--border); border-radius: 4px; height: 4px; }
+    .trending-bar { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .5s; }
+    .trending-volume { font-size: 11px; color: var(--muted); width: 50px; text-align: right; }
+
+    /* ── AI Chat ── */
+    .chat-wrap { display: flex; flex-direction: column; height: 520px; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 80%; }
+    .msg.user { align-self: flex-end; }
+    .msg.agent { align-self: flex-start; }
+    .msg-bubble { padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+    .msg.user .msg-bubble { background: var(--accent); color: #000; border-radius: 12px 12px 2px 12px; }
+    .msg.agent .msg-bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px 12px 12px 2px; }
+    .msg-meta { font-size: 11px; color: var(--muted); margin-top: 4px; padding: 0 4px; }
+    .chat-input-area { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; }
+    .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: inherit; resize: none; min-height: 40px; max-height: 120px; outline: none; transition: border-color .15s; }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-quick { display: flex; gap: 6px; padding: 0 12px 8px; flex-wrap: wrap; }
+    .quick-btn { padding: 5px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-size: 11px; cursor: pointer; transition: all .15s; }
+    .quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Forms ── */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .form-input, .form-select, .form-textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+    .form-select option { background: var(--surface2); }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Platform toggles ── */
+    .platform-toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+    .platform-toggle { padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all .15s; }
+    .platform-toggle.active-twitter { border-color: var(--twitter); color: var(--twitter); background: rgba(29,161,242,.1); }
+    .platform-toggle.active-linkedin { border-color: var(--linkedin); color: var(--linkedin); background: rgba(0,119,181,.1); }
+    .platform-toggle.active-instagram { border-color: var(--instagram); color: var(--instagram); background: rgba(225,48,108,.1); }
+    .platform-toggle.active-facebook { border-color: var(--facebook); color: var(--facebook); background: rgba(24,119,242,.1); }
+
+    /* ── Sentiment meters ── */
+    .sentiment-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 1px; margin: 8px 0; }
+    .sentiment-bar .pos { background: var(--green); }
+    .sentiment-bar .neg { background: var(--red); }
+    .sentiment-bar .neu { background: var(--muted); }
+    .sentiment-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+    /* ── Live alerts ── */
+    .alert-feed { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+    .alert-item { padding: 10px 12px; border-radius: 8px; font-size: 12px; border-left: 3px solid; animation: slideIn .3s ease; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .alert-item.high { background: rgba(248,81,73,.1); border-color: var(--red); }
+    .alert-item.medium { background: rgba(210,153,34,.1); border-color: var(--yellow); }
+    .alert-item.info { background: rgba(88,166,255,.1); border-color: var(--accent); }
+    .alert-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Generated content box ── */
+    .generated-post { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; min-height: 80px; color: var(--text); }
+    .post-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+    .char-count { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+    /* ── Influencer map ── */
+    .influencer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .influencer-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+    .influencer-avatar { width: 44px; height: 44px; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .influencer-name { font-weight: 600; font-size: 13px; }
+    .influencer-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .score-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+    /* ── Loading ── */
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+
+    /* ── Progress pulse ── */
+    .pulse-indicator { display: flex; gap: 4px; align-items: center; }
+    .pulse-bar { width: 3px; background: var(--accent); border-radius: 2px; animation: barPulse 1.2s ease infinite; }
+    .pulse-bar:nth-child(2) { animation-delay: .2s; }
+    .pulse-bar:nth-child(3) { animation-delay: .4s; }
+    @keyframes barPulse { 0%,100% { height: 6px; opacity: .4; } 50% { height: 14px; opacity: 1; } }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      aside { display: none; }
+      .kpi-grid { grid-template-columns: repeat(2,1fr); }
+      .grid-2, .grid-2-1, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">Social<span>Pulse</span></div>
+    <div class="badge">IBM Granite</div>
+    <div class="live-dot"></div>
+    <span style="font-size:12px;color:var(--muted)">Live</span>
+    <div class="header-right">
+      <div class="model-badge" id="modelBadge">ibm/granite-3-3-8b-instruct</div>
+      <div class="live-dot" id="wsIndicator" style="background:var(--red)"></div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside>
+    <div class="nav-label">Dashboard</div>
+    <div class="nav-section">
+      <button class="nav-item active" onclick="showView('overview')">
+        <span class="icon">📊</span> Overview
+      </button>
+      <button class="nav-item" onclick="showView('analytics')">
+        <span class="icon">📈</span> Analytics
+      </button>
+      <button class="nav-item" onclick="showView('sentiment')">
+        <span class="icon">💬</span> Sentiment
+      </button>
+      <button class="nav-item" onclick="showView('trending')">
+        <span class="icon">🔥</span> Trending
+      </button>
+    </div>
+    <div class="nav-label">AI Tools</div>
+    <div class="nav-section">
+      <button class="nav-item" onclick="showView('agent')">
+        <span class="icon">🤖</span> AI Agent
+      </button>
+      <button class="nav-item" onclick="showView('content')">
+        <span class="icon">✍️</span> Content Studio
+      </button>
+      <button class="nav-item" onclick="showView('campaign')">
+        <span class="icon">🚀</span> Campaign Planner
+      </button>
+    </div>
+    <div class="nav-label">Intelligence</div>
+    <div class="nav-section">
+      <button class="nav-item" onclick="showView('competitors')">
+        <span class="icon">🎯</span> Competitors
+      </button>
+      <button class="nav-item" onclick="showView('influencers')">
+        <span class="icon">⭐</span> Influencers
+      </button>
+      <button class="nav-item" onclick="showView('feed')">
+        <span class="icon">📡</span> Live Feed
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+
+    <!-- ═══ OVERVIEW ═══ -->
+    <div class="view active" id="view-overview">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <h1 style="font-size:20px;font-weight:700;">Social Media Pulse</h1>
+          <p style="color:var(--muted);font-size:13px;margin-top:4px;">Real-time analytics across all platforms — Powered by IBM Granite AI</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="refreshOverview()">↻ Refresh</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi twitter">
+          <div class="kpi-label">Twitter Impressions</div>
+          <div class="kpi-value" id="kpi-twitter">—</div>
+          <div class="kpi-change up" id="kpi-twitter-change">Loading...</div>
+        </div>
+        <div class="kpi linkedin">
+          <div class="kpi-label">LinkedIn Reach</div>
+          <div class="kpi-value" id="kpi-linkedin">—</div>
+          <div class="kpi-change up" id="kpi-linkedin-change">Loading...</div>
+        </div>
+        <div class="kpi instagram">
+          <div class="kpi-label">Instagram Likes</div>
+          <div class="kpi-value" id="kpi-instagram">—</div>
+          <div class="kpi-change up" id="kpi-instagram-change">Loading...</div>
+        </div>
+        <div class="kpi facebook">
+          <div class="kpi-label">Facebook Reach</div>
+          <div class="kpi-value" id="kpi-facebook">—</div>
+          <div class="kpi-change up" id="kpi-facebook-change">Loading...</div>
+        </div>
+      </div>
+
+      <div class="grid-2-1">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Engagement Trend</div>
+              <div class="card-subtitle">Last 7 days across all platforms</div>
+            </div>
+          </div>
+          <div class="chart-container tall"><canvas id="engagementChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Platform Share</div></div>
+          <div class="chart-container"><canvas id="platformChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔥 Trending Now</div>
+            <span class="tag positive">Live</span>
+          </div>
+          <div class="trending-list" id="trendingList">
+            <div class="loading-overlay"><div class="spinner"></div> Loading trends...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚡ Live Alerts</div>
+            <span class="tag high" id="alertCount">0 new</span>
+          </div>
+          <div class="alert-feed" id="alertFeed">
+            <div style="color:var(--muted);font-size:12px;padding:8px;">Waiting for live alerts...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Sentiment Overview</div>
+          <div style="display:flex;gap:8px;" id="sentimentPlatformTabs">
+            <button class="btn btn-sm btn-primary" onclick="setSentimentPlatform('all')">All</button>
+            <button class="btn btn-sm btn-secondary" onclick="setSentimentPlatform('twitter')">Twitter</button>
+            <button class="btn btn-sm btn-secondary" onclick="setSentimentPlatform('linkedin')">LinkedIn</button>
+            <button class="btn btn-sm btn-secondary" onclick="setSentimentPlatform('instagram')">Instagram</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
+          </div>
+          <div id="sentimentDetails" style="display:flex;flex-direction:column;gap:12px;justify-content:center;">
+            <div class="loading-overlay"><div class="spinner"></div> Analyzing...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ANALYTICS ═══ -->
+    <div class="view" id="view-analytics">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h1 style="font-size:20px;font-weight:700;">Platform Analytics</h1>
+        <div class="platform-toggles">
+          <button class="platform-toggle active-twitter" onclick="selectAnalyticsPlatform('twitter',this)">Twitter</button>
+          <button class="platform-toggle" onclick="selectAnalyticsPlatform('linkedin',this)">LinkedIn</button>
+          <button class="platform-toggle" onclick="selectAnalyticsPlatform('instagram',this)">Instagram</button>
+          <button class="platform-toggle" onclick="selectAnalyticsPlatform('facebook',this)">Facebook</button>
+        </div>
+        <select class="form-select" id="analyticsTimeRange" onchange="loadAnalytics()" style="margin-left:auto;width:auto;">
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="24h">Last 24 hours</option>
+        </select>
+      </div>
+
+      <div class="kpi-grid" id="analyticsKPIs">
+        <div class="loading-overlay"><div class="spinner"></div> Loading...</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Impressions Over Time</div></div>
+          <div class="chart-container tall"><canvas id="impressionsChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Engagement Breakdown</div></div>
+          <div class="chart-container tall"><canvas id="engagementBreakdownChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Detailed Performance</div></div>
+        <table class="data-table" id="analyticsTable">
+          <thead><tr><th>Date</th><th>Impressions</th><th>Engagements</th><th>Reach</th><th>Clicks</th><th>Eng. Rate</th></tr></thead>
+          <tbody id="analyticsTableBody"><tr><td colspan="6" style="color:var(--muted);text-align:center;">Loading data...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ SENTIMENT ═══ -->
+    <div class="view" id="view-sentiment">
+      <h1 style="font-size:20px;font-weight:700;">Sentiment Analysis</h1>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Analyze Custom Text</div></div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <textarea class="form-textarea" id="sentimentInput" rows="4" placeholder="Paste social media posts, comments, or hashtags to analyze sentiment..."></textarea>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" onclick="analyzeSentiment()">🔍 Analyze with IBM Granite</button>
+            <button class="btn btn-secondary" onclick="loadLiveSentiment()">📡 Analyze Live Feed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" id="sentimentResultsGrid" style="display:none;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Sentiment Distribution</div></div>
+          <div class="chart-container"><canvas id="sentimentResultChart"></canvas></div>
+        </div>
+        <div class="card" id="sentimentInsights">
+          <div class="card-header"><div class="card-title">AI Insights</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Live Platform Sentiment</div>
+          <div class="pulse-indicator"><div class="pulse-bar"></div><div class="pulse-bar"></div><div class="pulse-bar"></div></div>
+        </div>
+        <div id="liveSentimentDisplay" style="display:flex;flex-direction:column;gap:14px;margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <!-- ═══ TRENDING ═══ -->
+    <div class="view" id="view-trending">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h1 style="font-size:20px;font-weight:700;">Trending Hashtags & Topics</h1>
+        <button class="btn btn-secondary btn-sm" onclick="loadTrending()">↻ Refresh</button>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Twitter Trends</div></div>
+          <div id="trendingTwitter" class="trending-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">LinkedIn Trends</div></div>
+          <div id="trendingLinkedIn" class="trending-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Instagram Trends</div></div>
+          <div id="trendingInstagram" class="trending-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Growth Velocity</div></div>
+          <div class="chart-container tall"><canvas id="trendVelocityChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ AI AGENT ═══ -->
+    <div class="view" id="view-agent">
+      <h1 style="font-size:20px;font-weight:700;">🤖 AI Social Media Agent</h1>
+      <p style="color:var(--muted);font-size:13px;">Powered by IBM Granite — ask anything about your social media strategy</p>
+
+      <div class="card" style="flex:1;">
+        <div class="chat-quick">
+          <button class="quick-btn" onclick="sendQuick('What are the best posting times for LinkedIn?')">Best posting times?</button>
+          <button class="quick-btn" onclick="sendQuick('Analyze the current trends in AI marketing')">AI marketing trends</button>
+          <button class="quick-btn" onclick="sendQuick('How do I improve Instagram engagement rate?')">Boost engagement</button>
+          <button class="quick-btn" onclick="sendQuick('Create a 30-day content calendar for a SaaS brand')">Content calendar</button>
+          <button class="quick-btn" onclick="sendQuick('What hashtags should I use for a tech startup?')">Tech hashtags</button>
+        </div>
+        <div class="chat-wrap">
+          <div class="chat-messages" id="chatMessages">
+            <div class="msg agent">
+              <div class="msg-bubble">👋 Hello! I'm your IBM Granite-powered social media AI agent. I can help you with:<br><br>• Content strategy & post creation<br>• Trend analysis & hashtag recommendations<br>• Competitor intelligence<br>• Audience engagement tactics<br>• Campaign planning & scheduling<br><br>What would you like to work on today?</div>
+              <div class="msg-meta">IBM Granite AI • Ready</div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <textarea class="chat-input" id="chatInput" placeholder="Ask anything about social media strategy..." rows="1" onkeydown="chatKeydown(event)"></textarea>
+            <button class="btn btn-primary" onclick="sendChatMessage()" id="sendBtn">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CONTENT STUDIO ═══ -->
+    <div class="view" id="view-content">
+      <h1 style="font-size:20px;font-weight:700;">✍️ Content Studio</h1>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Generate Post</div></div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Platform</label>
+              <select class="form-select" id="contentPlatform">
+                <option value="twitter">Twitter/X</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Topic / Theme</label>
+              <input type="text" class="form-input" id="contentTopic" placeholder="e.g. Launching our new AI product" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Brand Voice / Tone</label>
+              <select class="form-select" id="contentTone">
+                <option value="professional">Professional</option>
+                <option value="casual and friendly">Casual & Friendly</option>
+                <option value="inspiring and motivational">Inspiring</option>
+                <option value="humorous and witty">Humorous</option>
+                <option value="educational and informative">Educational</option>
+                <option value="urgent and compelling">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Brand Name (optional)</label>
+              <input type="text" class="form-input" id="contentBrand" placeholder="e.g. TechCorp" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Additional Context (optional)</label>
+              <textarea class="form-textarea" id="contentContext" placeholder="Any specific details, offer, CTA..." rows="2"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="generatePost()" id="generateBtn">⚡ Generate with Granite</button>
+              <button class="btn btn-secondary" onclick="generateMultiPost()">All Platforms</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Generated Content</div>
+            <div id="contentPlatformBadge"></div>
+          </div>
+          <div id="generatedContent">
+            <div class="generated-post" style="color:var(--muted);">Your AI-generated post will appear here...</div>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <div class="card-header"><div class="card-title">Hashtag Suggestions</div></div>
+            <div id="hashtagSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+              <span style="color:var(--muted);font-size:12px;">Generate a post to see hashtag recommendations</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Multi-Platform Campaign</div></div>
+        <div id="multiPlatformResults" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+          <div style="color:var(--muted);font-size:12px;">Click "All Platforms" to generate content for all platforms simultaneously</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CAMPAIGN PLANNER ═══ -->
+    <div class="view" id="view-campaign">
+      <h1 style="font-size:20px;font-weight:700;">🚀 Campaign Planner</h1>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Campaign Brief</div></div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Campaign Goal *</label>
+              <input type="text" class="form-input" id="campaignGoal" placeholder="e.g. Increase brand awareness by 30%" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target Audience *</label>
+              <input type="text" class="form-input" id="campaignAudience" placeholder="e.g. Tech professionals aged 25-40" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Brand Name</label>
+              <input type="text" class="form-input" id="campaignBrand" placeholder="e.g. InnovateTech" />
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Budget</label>
+                <select class="form-select" id="campaignBudget">
+                  <option>$500-$1,000/month</option>
+                  <option>$1,000-$5,000/month</option>
+                  <option>$5,000-$20,000/month</option>
+                  <option>$20,000+/month</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Duration</label>
+                <select class="form-select" id="campaignDuration">
+                  <option>7 days</option>
+                  <option>14 days</option>
+                  <option selected>30 days</option>
+                  <option>90 days</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Platforms</label>
+              <div class="platform-toggles" id="campaignPlatforms">
+                <button class="platform-toggle active-twitter" data-platform="twitter" onclick="toggleCampaignPlatform(this)">Twitter</button>
+                <button class="platform-toggle active-linkedin" data-platform="linkedin" onclick="toggleCampaignPlatform(this)">LinkedIn</button>
+                <button class="platform-toggle" data-platform="instagram" onclick="toggleCampaignPlatform(this)">Instagram</button>
+                <button class="platform-toggle" data-platform="facebook" onclick="toggleCampaignPlatform(this)">Facebook</button>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="generateCampaign()" id="campaignBtn">🚀 Generate Strategy with Granite</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Generated Strategy</div></div>
+          <div id="campaignOutput" style="color:var(--muted);font-size:13px;line-height:1.7;">
+            Fill in the campaign brief and click "Generate Strategy" to get a comprehensive AI-powered campaign plan.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ COMPETITORS ═══ -->
+    <div class="view" id="view-competitors">
+      <h1 style="font-size:20px;font-weight:700;">🎯 Competitor Intelligence</h1>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Add Competitors</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" class="form-input" id="competitorHandle" placeholder="@competitorhandle" style="width:200px;" />
+          <button class="btn btn-secondary" onclick="addCompetitor()">+ Add</button>
+          <div id="competitorTags" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+          <button class="btn btn-primary" onclick="analyzeCompetitors()" id="analyzeCompBtn" style="margin-left:auto;">🔍 Analyze with Granite</button>
+        </div>
+      </div>
+
+      <div id="competitorResults" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+
+      <div class="card" id="competitorAnalysis" style="display:none;">
+        <div class="card-header"><div class="card-title">🤖 AI Competitive Analysis</div></div>
+        <div id="competitorAnalysisText" style="font-size:13px;line-height:1.8;white-space:pre-wrap;"></div>
+      </div>
+    </div>
+
+    <!-- ═══ INFLUENCERS ═══ -->
+    <div class="view" id="view-influencers">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h1 style="font-size:20px;font-weight:700;">⭐ Influencer Map</h1>
+        <button class="btn btn-secondary btn-sm" onclick="loadInfluencers()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Top Influencers by Collaboration Score</div></div>
+        <div class="influencer-grid" id="influencerGrid">
+          <div class="loading-overlay"><div class="spinner"></div> Loading influencers...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Engagement Rate Distribution</div></div>
+        <div class="chart-container tall"><canvas id="influencerChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ═══ LIVE FEED ═══ -->
+    <div class="view" id="view-feed">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h1 style="font-size:20px;font-weight:700;">📡 Multichannel Live Feed</h1>
+        <input type="text" class="form-input" id="feedQuery" placeholder="Search topic..." style="width:200px;" />
+        <button class="btn btn-primary" onclick="loadFeed()">Search</button>
+        <div class="platform-toggles">
+          <button class="platform-toggle active-twitter" onclick="filterFeed('all',this)">All</button>
+          <button class="platform-toggle" onclick="filterFeed('twitter',this)">Twitter</button>
+          <button class="platform-toggle" onclick="filterFeed('linkedin',this)">LinkedIn</button>
+          <button class="platform-toggle" onclick="filterFeed('instagram',this)">Instagram</button>
+          <button class="platform-toggle" onclick="filterFeed('facebook',this)">Facebook</button>
+        </div>
+      </div>
+      <div id="feedPosts" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════
+const state = {
+  currentView: 'overview',
+  analyticsPlatform: 'twitter',
+  competitors: [],
+  feedData: [],
+  filteredFeed: 'all',
+  sentimentPlatform: 'all',
+  charts: {},
+  alerts: []
+};
+
+// ═══════════════════════════════════════════════════════
+//  Socket.IO
+// ═══════════════════════════════════════════════════════
+const socket = io();
+socket.on('connect', () => {
+  document.getElementById('wsIndicator').style.background = 'var(--green)';
+});
+socket.on('disconnect', () => {
+  document.getElementById('wsIndicator').style.background = 'var(--red)';
+});
+socket.on('live:pulse', (data) => {
+  updateLiveKPIs(data.metrics);
+  if (data.alert) addAlert(data.alert);
+});
+socket.on('live:sentiment', (data) => {
+  updateLiveSentiment(data.platforms);
+});
+socket.on('live:engagement_spike', (data) => {
+  addAlert({ type: 'engagement_spike', message: `${data.platform}: ${data.spike_type} spike +${data.increase_pct}%`, severity: 'high' });
+});
+
+// ═══════════════════════════════════════════════════════
+//  Navigation
+// ═══════════════════════════════════════════════════════
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${name}'`)) n.classList.add('active');
+  });
+  state.currentView = name;
+  // Lazy load views
+  if (name === 'analytics') loadAnalytics();
+  if (name === 'trending') loadTrending();
+  if (name === 'influencers') loadInfluencers();
+  if (name === 'feed') loadFeed();
+  if (name === 'overview') refreshOverview();
+}
+
+// ═══════════════════════════════════════════════════════
+//  API helpers
+// ═══════════════════════════════════════════════════════
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════
+//  Overview
+// ═══════════════════════════════════════════════════════
+async function refreshOverview() {
+  try {
+    const [overview, trending] = await Promise.all([
+      api('/api/analytics/overview?timeRange=7d'),
+      api('/api/analytics/trends/hashtags?limit=8')
+    ]);
+
+    // KPIs
+    const kpiData = {
+      twitter: { val: fmtNum(overview.totals.impressions * 0.3), change: '+' + rand(5,25) + '%' },
+      linkedin: { val: fmtNum(overview.totals.reach * 0.25), change: '+' + rand(3,18) + '%' },
+      instagram: { val: fmtNum(overview.totals.engagements * 0.4), change: '+' + rand(8,35) + '%' },
+      facebook: { val: fmtNum(overview.totals.reach * 0.2), change: '+' + rand(2,15) + '%' }
+    };
+    for (const [p, d] of Object.entries(kpiData)) {
+      document.getElementById('kpi-' + p).textContent = d.val;
+      document.getElementById('kpi-' + p + '-change').textContent = `↑ ${d.change} vs last period`;
+    }
+
+    // Engagement chart
+    const twitterData = overview.platforms.twitter;
+    const labels = twitterData.map(d => d.date.slice(5));
+    const datasets = Object.entries(overview.platforms).map(([p, data]) => ({
+      label: p.charAt(0).toUpperCase() + p.slice(1),
+      data: data.map(d => d.engagements),
+      borderColor: { twitter: '#1da1f2', linkedin: '#0077b5', instagram: '#e1306c', facebook: '#1877f2' }[p],
+      backgroundColor: 'transparent',
+      tension: 0.4,
+      borderWidth: 2,
+      pointRadius: 3
+    }));
+    renderLineChart('engagementChart', labels, datasets);
+
+    // Platform donut
+    const platformTotals = Object.entries(overview.platforms).map(([p, data]) => ({
+      label: p.charAt(0).toUpperCase() + p.slice(1),
+      value: data.reduce((s, d) => s + d.engagements, 0)
+    }));
+    renderDoughnut('platformChart', platformTotals.map(d => d.label), platformTotals.map(d => d.value));
+
+    // Trending list
+    renderTrendingList('trendingList', trending.hashtags.slice(0, 6));
+
+    // Sentiment chart
+    renderSentimentChart();
+  } catch (e) {
+    console.error('Overview error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Analytics
+// ═══════════════════════════════════════════════════════
+let analyticsState = { platform: 'twitter' };
+function selectAnalyticsPlatform(platform, btn) {
+  analyticsState.platform = platform;
+  document.querySelectorAll('.platform-toggle').forEach(b => {
+    b.className = 'platform-toggle';
+  });
+  btn.classList.add('active-' + platform);
+  loadAnalytics();
+}
+
+async function loadAnalytics() {
+  const platform = analyticsState.platform;
+  const timeRange = document.getElementById('analyticsTimeRange').value;
+  try {
+    const data = await api(`/api/analytics/${platform}?timeRange=${timeRange}`);
+    const ts = data.timeSeries;
+    // KPIs
+    const kpis = [
+      { label: 'Total Impressions', val: fmtNum(data.summary.total_impressions), color: 'var(--accent)' },
+      { label: 'Total Engagements', val: fmtNum(data.summary.total_engagements), color: 'var(--accent2)' },
+      { label: 'Avg Engagement Rate', val: data.summary.avg_engagement_rate + '%', color: 'var(--green)' },
+      { label: 'Net Followers', val: (data.summary.net_followers > 0 ? '+' : '') + fmtNum(data.summary.net_followers), color: data.summary.net_followers >= 0 ? 'var(--green)' : 'var(--red)' }
+    ];
+    document.getElementById('analyticsKPIs').innerHTML = kpis.map(k => `
+      <div class="kpi" style="border-top:3px solid ${k.color}">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value" style="font-size:22px;">${k.val}</div>
+        <div class="kpi-change up">↑ ${rand(2,20)}% vs prev period</div>
+      </div>`).join('');
+
+    // Charts
+    const labels = ts.map(d => d.date.slice(5));
+    renderLineChart('impressionsChart', labels, [{
+      label: 'Impressions',
+      data: ts.map(d => d.impressions),
+      borderColor: 'var(--accent)',
+      backgroundColor: 'rgba(88,166,255,0.08)',
+      fill: true, tension: 0.4, borderWidth: 2
+    }]);
+    renderBarChart('engagementBreakdownChart', labels, [
+      { label: 'Likes', data: ts.map(d => d.likes), backgroundColor: 'rgba(88,166,255,0.7)' },
+      { label: 'Shares', data: ts.map(d => d.shares), backgroundColor: 'rgba(188,140,255,0.7)' },
+      { label: 'Comments', data: ts.map(d => d.comments), backgroundColor: 'rgba(63,185,80,0.7)' }
+    ]);
+
+    // Table
+    const rows = ts.slice(-10).reverse().map(d => `
+      <tr>
+        <td>${d.date}</td>
+        <td>${fmtNum(d.impressions)}</td>
+        <td>${fmtNum(d.engagements)}</td>
+        <td>${fmtNum(d.reach)}</td>
+        <td>${fmtNum(d.clicks)}</td>
+        <td><span class="tag ${parseFloat(d.engagement_rate) > 4 ? 'positive' : 'neutral'}">${d.engagement_rate}%</span></td>
+      </tr>`).join('');
+    document.getElementById('analyticsTableBody').innerHTML = rows;
+  } catch (e) {
+    console.error('Analytics error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Trending
+// ═══════════════════════════════════════════════════════
+async function loadTrending() {
+  try {
+    const [tw, li, ig] = await Promise.all([
+      api('/api/analytics/trends/hashtags?platform=twitter&limit=8'),
+      api('/api/analytics/trends/hashtags?platform=linkedin&limit=6'),
+      api('/api/analytics/trends/hashtags?platform=instagram&limit=6')
+    ]);
+    renderTrendingList('trendingTwitter', tw.hashtags);
+    renderTrendingList('trendingLinkedIn', li.hashtags);
+    renderTrendingList('trendingInstagram', ig.hashtags);
+
+    // Velocity chart
+    const all = tw.hashtags.slice(0, 8);
+    renderBarChart('trendVelocityChart',
+      all.map(h => h.tag),
+      [{ label: 'Growth %', data: all.map(h => h.growth), backgroundColor: all.map(h => h.growth > 20 ? 'rgba(248,81,73,0.8)' : 'rgba(88,166,255,0.7)') }]
+    );
+  } catch (e) { console.error('Trending error:', e); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Sentiment
+// ═══════════════════════════════════════════════════════
+function setSentimentPlatform(platform) {
+  state.sentimentPlatform = platform;
+  renderSentimentChart();
+}
+
+async function renderSentimentChart() {
+  const platforms = state.sentimentPlatform === 'all'
+    ? ['twitter', 'linkedin', 'instagram', 'facebook']
+    : [state.sentimentPlatform];
+  const pos = rand(40, 70), neg = rand(10, 25), neu = 100 - pos - neg;
+  renderDoughnut('sentimentChart',
+    ['Positive', 'Negative', 'Neutral'],
+    [pos, neg, neu],
+    ['#3fb950', '#f85149', '#8b949e']
+  );
+  document.getElementById('sentimentDetails').innerHTML = `
+    <div>
+      <div style="font-size:13px;margin-bottom:8px;">Overall: <strong style="color:var(--green)">Positive</strong></div>
+      ${['Positive','Negative','Neutral'].map((l,i) => `
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>${l}</span><span>${[pos,neg,neu][i]}%</span></div>
+          <div style="background:var(--border);border-radius:4px;height:6px;"><div style="width:${[pos,neg,neu][i]}%;background:${['var(--green)','var(--red)','var(--muted)'][i]};height:6px;border-radius:4px;"></div></div>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function analyzeSentiment() {
+  const text = document.getElementById('sentimentInput').value.trim();
+  if (!text) return;
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Analyzing...';
+  try {
+    const res = await api('/api/analytics/sentiment', {
+      method: 'POST',
+      body: JSON.stringify({ texts: [text] })
+    });
+    const s = res.sentiment;
+    document.getElementById('sentimentResultsGrid').style.display = 'grid';
+    renderDoughnut('sentimentResultChart',
+      ['Positive','Negative','Neutral'],
+      [s.breakdown.positive, s.breakdown.negative, s.breakdown.neutral],
+      ['#3fb950','#f85149','#8b949e']
+    );
+    document.getElementById('sentimentInsights').innerHTML = `
+      <div class="card-header"><div class="card-title">AI Insights</div></div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+        <div><strong>Overall:</strong> <span class="tag ${s.overall}">${s.overall.toUpperCase()}</span></div>
+        <div><strong>Score:</strong> ${s.score} (range: -1 to +1)</div>
+        <div><strong>Summary:</strong> ${s.summary}</div>
+        <div><strong>Emotions:</strong> ${s.emotions?.join(', ') || 'N/A'}</div>
+        <div><strong>Key Themes:</strong> ${s.key_themes?.join(', ') || 'N/A'}</div>
+      </div>`;
+  } catch (e) {
+    alert('Analysis failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 Analyze with IBM Granite';
+  }
+}
+
+async function loadLiveSentiment() {
+  const res = await api('/api/analytics/sentiment', {
+    method: 'POST',
+    body: JSON.stringify({ query: 'marketing AI technology brand' })
+  });
+  const s = res.sentiment;
+  document.getElementById('sentimentInput').value = 'Live feed analyzed: ' + res.analyzed + ' posts';
+  analyzeSentiment();
+}
+
+function updateLiveSentiment(platforms) {
+  const el = document.getElementById('liveSentimentDisplay');
+  if (!el) return;
+  el.innerHTML = Object.entries(platforms).map(([p, s]) => `
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+        <span class="tag ${p}-tag platform">${p.toUpperCase()}</span>
+        <span style="color:var(--muted)">Score: ${s.score}</span>
+      </div>
+      <div class="sentiment-bar">
+        <div class="pos" style="flex:${s.positive}"></div>
+        <div class="neg" style="flex:${s.negative}"></div>
+        <div class="neu" style="flex:${s.neutral}"></div>
+      </div>
+      <div class="sentiment-labels"><span>😊 ${s.positive}%</span><span>😐 ${s.neutral}%</span><span>😞 ${s.negative}%</span></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Live Alerts
+// ═══════════════════════════════════════════════════════
+function addAlert(alert) {
+  state.alerts.unshift({ ...alert, time: new Date().toLocaleTimeString() });
+  if (state.alerts.length > 10) state.alerts.pop();
+  const feed = document.getElementById('alertFeed');
+  if (!feed) return;
+  feed.innerHTML = state.alerts.map(a => `
+    <div class="alert-item ${a.severity}">
+      <div>${a.message}</div>
+      <div class="alert-time">${a.time}</div>
+    </div>`).join('');
+  const count = document.getElementById('alertCount');
+  if (count) count.textContent = state.alerts.length + ' alerts';
+}
+
+function updateLiveKPIs(metrics) {
+  // Subtle shimmer effect on KPI updates
+}
+
+// ═══════════════════════════════════════════════════════
+//  AI Agent Chat
+// ═══════════════════════════════════════════════════════
+const chatSession = 'session_' + Date.now();
+
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+  appendMessage('user', message);
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  appendMessage('agent', null, true); // loading
+  try {
+    const res = await api('/api/agent/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, sessionId: chatSession })
+    });
+    removeLastAgentLoading();
+    appendMessage('agent', res.response, false, res.model);
+  } catch (e) {
+    removeLastAgentLoading();
+    appendMessage('agent', '⚠️ Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function sendQuick(msg) {
+  document.getElementById('chatInput').value = msg;
+  sendChatMessage();
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+}
+
+function appendMessage(role, content, loading = false, model = '') {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  if (loading) {
+    div.id = 'loadingMsg';
+    div.innerHTML = `<div class="msg-bubble"><div class="loading-overlay"><div class="spinner"></div> IBM Granite is thinking...</div></div>`;
+  } else {
+    div.innerHTML = `<div class="msg-bubble">${escHtml(content)}</div><div class="msg-meta">${model || (role === 'user' ? 'You' : 'IBM Granite AI')} • ${new Date().toLocaleTimeString()}</div>`;
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeLastAgentLoading() {
+  const el = document.getElementById('loadingMsg');
+  if (el) el.remove();
+}
+
+// ═══════════════════════════════════════════════════════
+//  Content Studio
+// ═══════════════════════════════════════════════════════
+async function generatePost() {
+  const platform = document.getElementById('contentPlatform').value;
+  const topic = document.getElementById('contentTopic').value.trim();
+  const tone = document.getElementById('contentTone').value;
+  const brand = document.getElementById('contentBrand').value.trim();
+  const additionalContext = document.getElementById('contentContext').value.trim();
+  if (!topic) return alert('Please enter a topic');
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.textContent = '⚡ Generating...';
+  document.getElementById('generatedContent').innerHTML = `<div class="loading-overlay"><div class="spinner"></div> IBM Granite is crafting your post...</div>`;
+
+  try {
+    const [postRes, hashtagRes] = await Promise.all([
+      api('/api/content/generate', { method: 'POST', body: JSON.stringify({ platform, topic, tone, brand, additionalContext }) }),
+      api('/api/content/hashtags', { method: 'POST', body: JSON.stringify({ topic, platform, count: 10 }) })
+    ]);
+
+    const platformColors = { twitter: 'var(--twitter)', linkedin: 'var(--linkedin)', instagram: 'var(--instagram)', facebook: 'var(--facebook)' };
+    document.getElementById('contentPlatformBadge').innerHTML = `<span class="tag ${platform}-tag">${platform.toUpperCase()}</span>`;
+    document.getElementById('generatedContent').innerHTML = `
+      <div class="generated-post">${escHtml(postRes.post)}</div>
+      <div class="post-actions">
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${escAttr(postRes.post)}')">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="generatePost()">↻ Regenerate</button>
+        <span class="char-count">${postRes.charCount} chars</span>
+      </div>`;
+
+    document.getElementById('hashtagSuggestions').innerHTML = (hashtagRes.hashtags || [])
+      .map(h => `<span class="tag high" style="cursor:pointer" onclick="copyToClipboard('${h}')">${h}</span>`).join('');
+  } catch (e) {
+    document.getElementById('generatedContent').innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Generate with Granite';
+  }
+}
+
+async function generateMultiPost() {
+  const topic = document.getElementById('contentTopic').value.trim();
+  const tone = document.getElementById('contentTone').value;
+  const brand = document.getElementById('contentBrand').value.trim();
+  if (!topic) return alert('Please enter a topic');
+
+  document.getElementById('multiPlatformResults').innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Generating for all platforms...</div>`;
+  try {
+    const res = await api('/api/content/generate-multi', {
+      method: 'POST',
+      body: JSON.stringify({ platforms: ['twitter','linkedin','instagram','facebook'], topic, tone, brand })
+    });
+    document.getElementById('multiPlatformResults').innerHTML = res.posts.map(p => `
+      <div class="card" style="border-top:3px solid var(--${p.platform});">
+        <div class="card-header"><div class="card-title">${p.platform.toUpperCase()}</div><span class="char-count">${p.charCount} chars</span></div>
+        <div class="generated-post" style="font-size:12px;">${escHtml(p.post || p.error || 'N/A')}</div>
+        <div style="margin-top:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${escAttr(p.post || '')}')">📋 Copy</button>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    document.getElementById('multiPlatformResults').innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Campaign Planner
+// ═══════════════════════════════════════════════════════
+const selectedCampaignPlatforms = new Set(['twitter', 'linkedin']);
+
+function toggleCampaignPlatform(btn) {
+  const platform = btn.dataset.platform;
+  if (selectedCampaignPlatforms.has(platform)) {
+    selectedCampaignPlatforms.delete(platform);
+    btn.className = 'platform-toggle';
+  } else {
+    selectedCampaignPlatforms.add(platform);
+    btn.classList.add('active-' + platform);
+  }
+}
+
+async function generateCampaign() {
+  const goal = document.getElementById('campaignGoal').value.trim();
+  const audience = document.getElementById('campaignAudience').value.trim();
+  const brand = document.getElementById('campaignBrand').value.trim();
+  const budget = document.getElementById('campaignBudget').value;
+  const duration = document.getElementById('campaignDuration').value;
+  if (!goal || !audience) return alert('Goal and audience are required');
+
+  const btn = document.getElementById('campaignBtn');
+  btn.disabled = true; btn.textContent = '🚀 Generating...';
+  document.getElementById('campaignOutput').innerHTML = `<div class="loading-overlay"><div class="spinner"></div> IBM Granite is crafting your strategy...</div>`;
+  try {
+    const res = await api('/api/agent/campaign', {
+      method: 'POST',
+      body: JSON.stringify({ goal, audience, brand, budget, duration, platforms: [...selectedCampaignPlatforms] })
+    });
+    document.getElementById('campaignOutput').innerHTML = `<div style="white-space:pre-wrap;font-size:13px;line-height:1.8;">${escHtml(res.strategy)}</div>`;
+  } catch (e) {
+    document.getElementById('campaignOutput').innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '🚀 Generate Strategy with Granite';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Competitors
+// ═══════════════════════════════════════════════════════
+function addCompetitor() {
+  const input = document.getElementById('competitorHandle');
+  const handle = input.value.trim().replace('@', '');
+  if (!handle) return;
+  if (!state.competitors.includes(handle)) {
+    state.competitors.push(handle);
+    renderCompetitorTags();
+  }
+  input.value = '';
+}
+
+function renderCompetitorTags() {
+  document.getElementById('competitorTags').innerHTML = state.competitors.map(h => `
+    <span class="tag neutral" style="cursor:pointer" onclick="removeCompetitor('${h}')">@${h} ✕</span>`).join('');
+}
+
+function removeCompetitor(handle) {
+  state.competitors = state.competitors.filter(h => h !== handle);
+  renderCompetitorTags();
+}
+
+async function analyzeCompetitors() {
+  if (!state.competitors.length) {
+    state.competitors = ['techbrand', 'innovatecorp', 'digitalagency'];
+    renderCompetitorTags();
+  }
+  const btn = document.getElementById('analyzeCompBtn');
+  btn.disabled = true; btn.textContent = '🔍 Analyzing...';
+  try {
+    const res = await api('/api/agent/competitor', {
+      method: 'POST',
+      body: JSON.stringify({ handles: state.competitors })
+    });
+    document.getElementById('competitorResults').innerHTML = res.competitors.map(c => `
+      <div class="card">
+        <div class="card-header"><div class="card-title">@${c.handle}</div><span class="tag neutral">${c.recent_campaigns[0]}</span></div>
+        ${Object.entries(c.platform_metrics).map(([p, m]) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+            <span class="tag ${p}-tag platform">${p}</span>
+            <span style="flex:1;">👥 ${fmtNum(m.followers)}</span>
+            <span style="color:var(--green);">⚡ ${m.engagement_rate}</span>
+            <span style="color:var(--muted);">${m.posts_per_week}x/wk</span>
+          </div>`).join('')}
+        <div style="margin-top:10px;font-size:12px;color:var(--muted);">
+          Avg response time: ${c.avg_response_time} • Sentiment: ${c.sentiment_score}
+        </div>
+      </div>`).join('');
+
+    document.getElementById('competitorAnalysis').style.display = 'block';
+    document.getElementById('competitorAnalysisText').innerHTML = `<div class="loading-overlay"><div class="spinner"></div> IBM Granite analyzing competition...</div>`;
+    document.getElementById('competitorAnalysisText').textContent = res.analysis;
+  } catch (e) {
+    alert('Analysis error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 Analyze with Granite';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Influencers
+// ═══════════════════════════════════════════════════════
+async function loadInfluencers() {
+  try {
+    const res = await api('/api/analytics/influencers/map');
+    const influencers = res.influencers;
+    const avatars = ['🦁','🦊','🦋','🦅','🐬','🦄','🐺','🦈','🦁','🐯'];
+    document.getElementById('influencerGrid').innerHTML = influencers.map((inf, i) => `
+      <div class="influencer-card">
+        <div class="influencer-avatar" style="background:var(--surface);">${avatars[i % avatars.length]}</div>
+        <div class="influencer-name">${inf.handle}</div>
+        <div class="influencer-meta"><span class="tag ${inf.platform}-tag platform">${inf.platform}</span></div>
+        <div class="influencer-meta" style="margin-top:6px;">👥 ${fmtNum(inf.followers)} • ⚡ ${inf.engagement_rate}</div>
+        <div class="influencer-meta">${inf.niche} • +${inf.recent_growth} growth</div>
+        <div class="score-bar"><div class="score-fill" style="width:${inf.collaboration_score}%;"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Collab score: ${inf.collaboration_score}/100</div>
+      </div>`).join('');
+
+    renderBarChart('influencerChart',
+      influencers.map(i => i.handle),
+      [{ label: 'Engagement Rate %', data: influencers.map(i => parseFloat(i.engagement_rate)), backgroundColor: 'rgba(88,166,255,0.7)' }]
+    );
+  } catch (e) { console.error('Influencers error:', e); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Feed
+// ═══════════════════════════════════════════════════════
+async function loadFeed() {
+  const query = document.getElementById('feedQuery').value || 'marketing AI';
+  const res = await api(`/api/social/feed?query=${encodeURIComponent(query)}&limit=30`);
+  state.feedData = res.feed;
+  renderFeed(state.feedData);
+}
+
+function filterFeed(platform, btn) {
+  state.filteredFeed = platform;
+  document.querySelectorAll('#view-feed .platform-toggle').forEach(b => b.className = 'platform-toggle');
+  btn.classList.add(platform === 'all' ? 'active-twitter' : 'active-' + platform);
+  const filtered = platform === 'all' ? state.feedData : state.feedData.filter(p => p.platform === platform);
+  renderFeed(filtered);
+}
+
+function renderFeed(posts) {
+  const colors = { twitter: 'var(--twitter)', linkedin: 'var(--linkedin)', instagram: 'var(--instagram)', facebook: 'var(--facebook)' };
+  document.getElementById('feedPosts').innerHTML = posts.map(p => `
+    <div class="card" style="border-left:3px solid ${colors[p.platform] || 'var(--border)'};">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="tag ${p.platform}-tag platform">${p.platform.toUpperCase()}</span>
+        <span style="font-weight:600;font-size:13px;">${p.author?.name || 'Unknown'}</span>
+        <span style="color:var(--muted);font-size:11px;">@${p.author?.username || 'user'}</span>
+        <span style="margin-left:auto;color:var(--muted);font-size:11px;">${new Date(p.created_at).toLocaleString()}</span>
+      </div>
+      <div style="font-size:13px;line-height:1.6;margin-bottom:10px;">${escHtml(p.text)}</div>
+      <div style="display:flex;gap:12px;font-size:11px;color:var(--muted);">
+        ${Object.entries(p.metrics || {}).slice(0,3).map(([k,v]) => `<span>📊 ${k.replace(/_/g,' ')}: <strong>${fmtNum(v)}</strong></span>`).join('')}
+        <span class="tag ${p.sentiment}" style="margin-left:auto;">${p.sentiment}</span>
+      </div>
+    </div>`).join('') || '<div style="color:var(--muted);padding:20px;">No posts found</div>';
+}
+
+// ═══════════════════════════════════════════════════════
+//  Chart helpers
+// ═══════════════════════════════════════════════════════
+const CHART_DEFAULTS = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: 'rgba(48,54,61,0.5)' } },
+    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: 'rgba(48,54,61,0.5)' } }
+  }
+};
+
+function renderLineChart(id, labels, datasets) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  state.charts[id] = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { ...CHART_DEFAULTS } });
+}
+
+function renderBarChart(id, labels, datasets) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  state.charts[id] = new Chart(ctx, { type: 'bar', data: { labels, datasets }, options: { ...CHART_DEFAULTS } });
+}
+
+function renderDoughnut(id, labels, data, colors) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  const defaultColors = ['#58a6ff','#bc8cff','#3fb950','#e3b341','#f85149'];
+  state.charts[id] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors || defaultColors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#8b949e', font: { size: 11 } } } } }
+  });
+}
+
+function destroyChart(id) {
+  if (state.charts[id]) { state.charts[id].destroy(); delete state.charts[id]; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Trending list renderer
+// ═══════════════════════════════════════════════════════
+function renderTrendingList(id, hashtags) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const maxVol = Math.max(...hashtags.map(h => h.volume));
+  el.innerHTML = hashtags.map((h, i) => `
+    <div class="trending-item">
+      <span class="trending-rank">${i + 1}</span>
+      <span class="trending-tag">${h.tag}</span>
+      <div class="trending-bar-wrap"><div class="trending-bar" style="width:${Math.round(h.volume / maxVol * 100)}%"></div></div>
+      <span class="trending-volume">${fmtNum(h.volume)}</span>
+      <span class="tag ${h.growth > 20 ? 'positive' : 'neutral'}" style="font-size:10px;">+${h.growth}%</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Utilities
+// ═══════════════════════════════════════════════════════
+function fmtNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/'/g,'&#39;').replace(/\n/g,' '); }
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const t = document.createElement('div');
+    t.textContent = '✓ Copied!';
+    t.style.cssText = 'position:fixed;top:20px;right:20px;background:var(--green);color:#000;padding:8px 16px;border-radius:8px;font-size:13px;z-index:9999;';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  Health check & init
+// ═══════════════════════════════════════════════════════
+async function init() {
+  try {
+    const health = await api('/api/health');
+    document.getElementById('modelBadge').textContent = health.model;
+  } catch (e) {}
+  refreshOverview();
+}
+
+init();
+</script>
+</body>
+</html>
