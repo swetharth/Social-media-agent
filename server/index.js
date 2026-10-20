@@ -10,6 +10,8 @@ const rateLimit = require('express-rate-limit');
 
 const agentRoutes = require('./routes/agent');
 const analyticsRoutes = require('./routes/analytics');
+const socialRoutes = require('./routes/social');
+const contentRoutes = require('./routes/content');
 const { startRealTimeUpdates } = require('./services/realtime');
 
 const app = express();
@@ -39,6 +41,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API Routes
 app.use('/api/agent', agentRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/social', socialRoutes);
+app.use('/api/content', contentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

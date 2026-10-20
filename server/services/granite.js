@@ -455,6 +455,58 @@ function fallbackKnowledgeGraph(topic) {
   };
 }
 
+async function analyzeSentiment(text) {
+  const prompt = `Analyze the sentiment of the following social media text. Return ONLY a JSON object with these fields:
+{
+  "overall": "positive" | "negative" | "neutral",
+  "score": <float 0.0-1.0 where 1.0 is most positive>,
+  "positive": <integer percentage 0-100>,
+  "negative": <integer percentage 0-100>,
+  "neutral": <integer percentage 0-100>,
+  "emotions": ["<emotion1>", "<emotion2>"],
+  "summary": "<one sentence insight>"
+}
+
+Text to analyze:
+"${text.replace(/"/g, '\\"')}"
+
+JSON:`;
+
+  try {
+    const raw = await generateText(prompt, { maxTokens: 300, temperature: 0.1 });
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in response');
+    const parsed = JSON.parse(match[0]);
+    return {
+      overall: parsed.overall || 'neutral',
+      score: parsed.score ?? 0.5,
+      positive: parsed.positive ?? 33,
+      negative: parsed.negative ?? 33,
+      neutral: parsed.neutral ?? 34,
+      emotions: parsed.emotions || [],
+      summary: parsed.summary || 'Sentiment analysis complete.'
+    };
+  } catch {
+    // fallback: simple keyword-based
+    const lower = text.toLowerCase();
+    const posWords = ['good','great','love','amazing','excellent','happy','best','awesome','fantastic','wonderful'];
+    const negWords = ['bad','hate','terrible','awful','worst','poor','horrible','disgusting','angry','sad'];
+    const posCount = posWords.filter(w => lower.includes(w)).length;
+    const negCount = negWords.filter(w => lower.includes(w)).length;
+    const total = posCount + negCount || 1;
+    const positive = Math.round((posCount / total) * 80 + 10);
+    const negative = Math.round((negCount / total) * 80 + 10);
+    const neutral = Math.max(0, 100 - positive - negative);
+    return {
+      overall: posCount > negCount ? 'positive' : negCount > posCount ? 'negative' : 'neutral',
+      score: posCount > negCount ? 0.7 : negCount > posCount ? 0.3 : 0.5,
+      positive, negative, neutral,
+      emotions: [],
+      summary: 'Sentiment analyzed using keyword fallback.'
+    };
+  }
+}
+
 module.exports = {
   generateText,
   synthesizeLiteratureReview,
@@ -466,5 +518,6 @@ module.exports = {
   generateKnowledgeGraph,
   analyzeMultimodalInput,
   generateResearchProposal,
-  findRelatedResearch
+  findRelatedResearch,
+  analyzeSentiment
 };

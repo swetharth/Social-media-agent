@@ -764,7 +764,7 @@ async function refreshOverview() {
   try {
     const [overview, trending] = await Promise.all([
       api('/api/analytics/overview?timeRange=7d'),
-      api('/api/analytics/trends/hashtags?limit=8')
+      api('/api/social/trending?limit=8')
     ]);
 
     // KPIs
@@ -801,7 +801,7 @@ async function refreshOverview() {
     renderDoughnut('platformChart', platformTotals.map(d => d.label), platformTotals.map(d => d.value));
 
     // Trending list
-    renderTrendingList('trendingList', trending.hashtags.slice(0, 6));
+    renderTrendingList('trendingList', trending.trending.slice(0, 6));
 
     // Sentiment chart
     renderSentimentChart();
@@ -880,16 +880,16 @@ async function loadAnalytics() {
 async function loadTrending() {
   try {
     const [tw, li, ig] = await Promise.all([
-      api('/api/analytics/trends/hashtags?platform=twitter&limit=8'),
-      api('/api/analytics/trends/hashtags?platform=linkedin&limit=6'),
-      api('/api/analytics/trends/hashtags?platform=instagram&limit=6')
+      api('/api/social/trending?platform=twitter&limit=8'),
+      api('/api/social/trending?platform=linkedin&limit=6'),
+      api('/api/social/trending?platform=instagram&limit=6')
     ]);
-    renderTrendingList('trendingTwitter', tw.hashtags);
-    renderTrendingList('trendingLinkedIn', li.hashtags);
-    renderTrendingList('trendingInstagram', ig.hashtags);
+    renderTrendingList('trendingTwitter', tw.trending);
+    renderTrendingList('trendingLinkedIn', li.trending);
+    renderTrendingList('trendingInstagram', ig.trending);
 
     // Velocity chart
-    const all = tw.hashtags.slice(0, 8);
+    const all = tw.trending.slice(0, 8);
     renderBarChart('trendVelocityChart',
       all.map(h => h.tag),
       [{ label: 'Growth %', data: all.map(h => h.growth), backgroundColor: all.map(h => h.growth > 20 ? 'rgba(248,81,73,0.8)' : 'rgba(88,166,255,0.7)') }]
@@ -934,23 +934,22 @@ async function analyzeSentiment() {
   try {
     const res = await api('/api/analytics/sentiment', {
       method: 'POST',
-      body: JSON.stringify({ texts: [text] })
+      body: JSON.stringify({ text })
     });
     const s = res.sentiment;
     document.getElementById('sentimentResultsGrid').style.display = 'grid';
     renderDoughnut('sentimentResultChart',
       ['Positive','Negative','Neutral'],
-      [s.breakdown.positive, s.breakdown.negative, s.breakdown.neutral],
+      [s.positive, s.negative, s.neutral],
       ['#3fb950','#f85149','#8b949e']
     );
     document.getElementById('sentimentInsights').innerHTML = `
       <div class="card-header"><div class="card-title">AI Insights</div></div>
       <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
         <div><strong>Overall:</strong> <span class="tag ${s.overall}">${s.overall.toUpperCase()}</span></div>
-        <div><strong>Score:</strong> ${s.score} (range: -1 to +1)</div>
+        <div><strong>Score:</strong> ${s.score}</div>
         <div><strong>Summary:</strong> ${s.summary}</div>
         <div><strong>Emotions:</strong> ${s.emotions?.join(', ') || 'N/A'}</div>
-        <div><strong>Key Themes:</strong> ${s.key_themes?.join(', ') || 'N/A'}</div>
       </div>`;
   } catch (e) {
     alert('Analysis failed: ' + e.message);
@@ -962,7 +961,7 @@ async function analyzeSentiment() {
 async function loadLiveSentiment() {
   const res = await api('/api/analytics/sentiment', {
     method: 'POST',
-    body: JSON.stringify({ query: 'marketing AI technology brand' })
+    body: JSON.stringify({ text: 'marketing AI technology brand' })
   });
   const s = res.sentiment;
   document.getElementById('sentimentInput').value = 'Live feed analyzed: ' + res.analyzed + ' posts';
